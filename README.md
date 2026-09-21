@@ -1,0 +1,23 @@
+# 🎤 Hát Karaoke
+
+Gõ tên bài hát, chọn video karaoke và hát ngay trong trang. Chạy trên Windows, không cần cài thêm gì.
+
+## Cách dùng
+
+1. Bấm nút xanh **Code** → **Download ZIP**, rồi giải nén ra một thư mục (ví dụ `Documents\Karaoke`).
+2. Nhấp đúp file **`Karaoke.bat`**.
+   - Nếu Windows hiện cảnh báo, bấm **More info** → **Run anyway** (hoặc **Run**).
+3. **Lần đầu tiên**, Notepad sẽ mở ra: dán YouTube API key vào dòng trống cuối, bấm **Ctrl+S**, rồi đóng Notepad. Trang karaoke sẽ tự mở.
+   - Không có key cũng được: cứ đóng Notepad. Khi đó bấm tìm sẽ mở kết quả trên YouTube.
+4. Ngoài Desktop sẽ tự có biểu tượng micro **Hát Karaoke**. Những lần sau chỉ cần nhấp đúp biểu tượng đó.
+   - Nếu chuyển thư mục đi chỗ khác, nhấp đúp `Karaoke.bat` một lần để biểu tượng ngoài Desktop cập nhật theo.
+
+## Lấy YouTube API key (miễn phí)
+
+1. Vào [Google Cloud Console](https://console.cloud.google.com), đăng nhập Gmail, tạo một project mới.
+2. Vào [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) → bấm **Enable**.
+3. Vào [Credentials](https://console.cloud.google.com/apis/credentials) → **Create credentials** → **API key**, copy key (bắt đầu bằng `AIza...`).
+
+Mỗi ngày tìm được khoảng 100 lần. Bài đã tìm được nhớ lại 7 ngày nên tìm lại không tốn lượt. Hết lượt thì trang tự mở YouTube.
+
+Muốn đổi key: mở file `api-key.txt` bằng Notepad, hoặc bấm **Cài đặt** ở cuối trang karaoke.

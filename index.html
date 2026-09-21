@@ -5,36 +5,69 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hát Karaoke</title>
 <style>
-  :root { --bg:#111; --fg:#fff; --muted:#9a9a9a; --card:#1e1e1e; --accent:#ff2d55; }
+  :root { --bg:#111; --fg:#fff; --muted:#9a9a9a; --card:#1e1e1e; --line:#333; --accent:#ff2d55; }
   * { box-sizing: border-box; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg);
          font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         display:flex; flex-direction:column; align-items:center; padding:6vh 16px; }
+         display:flex; flex-direction:column; align-items:center; padding:5vh 16px 40px; }
   h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin:0 0 .3em; }
   h1 span { color:var(--accent); }
+  .wrap { width:100%; max-width:1100px; display:flex; flex-direction:column; align-items:center; }
   form { width:100%; max-width:720px; display:flex; gap:10px; }
-  input { flex:1; min-width:0; font-size:1.5rem; padding:.7em .9em; border-radius:14px;
-          border:2px solid #333; background:var(--card); color:var(--fg); outline:none; }
-  input:focus { border-color:var(--accent); }
+  form input { flex:1; min-width:0; font-size:1.5rem; padding:.7em .9em; border-radius:14px;
+               border:2px solid var(--line); background:var(--card); color:var(--fg); outline:none; }
+  form input:focus { border-color:var(--accent); }
   button { font-size:1.3rem; padding:0 1.1em; border:0; border-radius:14px; cursor:pointer;
            background:var(--accent); color:#fff; font-weight:600; }
   .tones { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:16px 0 0; }
   .tones label { cursor:pointer; }
   .tones input { display:none; }
   .tones span { display:inline-block; padding:.45em 1em; border-radius:999px; background:var(--card);
-                border:1px solid #333; font-size:1.05rem; }
+                border:1px solid var(--line); font-size:1.05rem; }
   .tones input:checked + span { background:var(--accent); border-color:var(--accent); }
   section { width:100%; max-width:720px; margin-top:32px; }
-  section h2 { font-size:1rem; color:var(--muted); font-weight:500; display:flex; justify-content:space-between; }
-  section h2 a { color:var(--muted); cursor:pointer; font-size:.9rem; }
+  section.wide { max-width:1100px; }
+  section h2 { font-size:1rem; color:var(--muted); font-weight:500; display:flex; justify-content:space-between; gap:12px; }
+  section h2 a { color:var(--muted); cursor:pointer; font-size:.9rem; text-decoration:underline; }
   .list { display:flex; flex-wrap:wrap; gap:8px; }
-  .list button { background:var(--card); border:1px solid #333; font-size:1.05rem; font-weight:400;
+  .list button { background:var(--card); border:1px solid var(--line); font-size:1.05rem; font-weight:400;
                  padding:.55em 1em; }
   .list button:hover { border-color:var(--accent); }
-  .hint { color:var(--muted); font-size:.9rem; margin-top:40px; text-align:center; }
+
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+  @media (max-width: 800px) { .grid { grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width: 480px) { .grid { grid-template-columns:1fr; } }
+  .video.playing { border-color:var(--accent); }
+
+  .player { width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; }
+  .player iframe { width:100%; height:100%; border:0; display:block; }
+  .nowbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px; }
+  .nowbar b { font-size:1.15rem; }
+  .nowbar a, .nowbar button { color:var(--muted); font-size:.95rem; }
+  .nowbar button { background:none; padding:0; text-decoration:underline; font-weight:400; }
+  .video { display:block; color:inherit; text-decoration:none; background:var(--card); border-radius:12px;
+           overflow:hidden; border:2px solid transparent; }
+  .video:hover, .video:focus { border-color:var(--accent); outline:none; }
+  .video img { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#000; }
+  .video .t { padding:10px 12px 4px; font-size:1.05rem; line-height:1.35; font-weight:600;
+              display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .video .c { padding:0 12px 12px; color:var(--muted); font-size:.9rem; }
+  .msg { color:var(--muted); font-size:1.05rem; padding:12px 0; line-height:1.6; }
+  .msg a { color:var(--accent); }
+
+  .keybox { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; line-height:1.6; }
+  .keybox ol { margin:.4em 0 .8em; padding-left:1.3em; }
+  .keybox a { color:var(--accent); }
+  .keybox .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .keybox input { flex:1; min-width:200px; font-size:1rem; padding:.6em .8em; border-radius:10px;
+                  border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  .keybox button { font-size:1rem; padding:.6em 1em; }
+  .foot { color:var(--muted); font-size:.85rem; margin-top:40px; }
+  .foot a { color:var(--muted); cursor:pointer; text-decoration:underline; }
 </style>
 </head>
 <body>
+<div class="wrap">
   <h1>🎤 Hát <span>Karaoke</span></h1>
 
   <form id="f">
@@ -50,6 +83,34 @@
     <label><input type="radio" name="tone" value="beat"><span>Beat</span></label>
   </div>
 
+  <section id="keySection" hidden>
+    <div class="keybox">
+      <b>Tuỳ chọn: thêm YouTube API key (miễn phí) để hiện kết quả ngay trong trang.</b> Không có key thì trang tự mở YouTube.
+      <ol>
+        <li>Vào <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">Google Cloud Console</a>, tạo project rồi bấm <b>Enable</b> (YouTube Data API v3).</li>
+        <li>Vào <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Credentials</a> → <b>Create credentials</b> → <b>API key</b>, copy key.</li>
+        <li>Dán vào ô dưới đây. Key chỉ lưu trên trình duyệt của máy này.</li>
+      </ol>
+      <div class="row">
+        <input id="keyInput" placeholder="Dán API key vào đây (AIza...)" autocomplete="off">
+        <button type="button" id="keySave">Lưu</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="playerBox" class="wide" hidden>
+    <div class="player"><iframe id="player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+    <div class="nowbar">
+      <b id="nowTitle"></b>
+      <span><a id="nowYt" target="_blank">Xem trên YouTube</a> · <button type="button" id="closePlayer">Đóng</button></span>
+    </div>
+  </section>
+
+  <section id="resultsBox" class="wide" hidden>
+    <h2><span id="resultsTitle">Kết quả</span> <a id="openYt" target="_blank">Mở trên YouTube</a></h2>
+    <div id="results"></div>
+  </section>
+
   <section id="recentBox" hidden>
     <h2>Đã tìm gần đây <a id="clear">Xoá</a></h2>
     <div class="list" id="recent"></div>
@@ -60,29 +121,145 @@
     <div class="list" id="popular"></div>
   </section>
 
-  <p class="hint">Gõ tên bài rồi nhấn Enter — YouTube sẽ mở sẵn kết quả karaoke.</p>
+  <p class="foot"><a id="changeKey">Cài đặt</a></p>
+</div>
 
 <script>
   const POPULAR = ["Nối vòng tay lớn", "Hãy về đây bên anh", "Người hãy quên em đi", "Diễm xưa",
     "Lạc trôi", "Em của ngày hôm qua", "Duyên phận", "Sầu tím thiệp hồng", "Đừng hỏi em",
     "Bèo dạt mây trôi", "Chắc ai đó sẽ về", "Để Mị nói cho mà nghe"];
-  const KEY = "karaoke_recent";
+  const RECENT_KEY = "karaoke_recent";
+  const API_KEY = "karaoke_yt_api_key";
   const $ = id => document.getElementById(id);
 
-  function loadRecent() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } }
-  function saveRecent(list) { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {} }
+  function load(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  function decode(s) { return new DOMParser().parseFromString(s, "text/html").documentElement.textContent; }
+  function ytSearchUrl(query) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(query); }
+
+  let lastSong = "";
+
+  // Khi chạy qua start.ps1, API key lấy từ file api-key.txt cạnh index.html
+  // (dùng chung cho mọi trình duyệt). Mở trực tiếp từ file thì chỉ dùng key lưu trong trình duyệt.
+  const onServer = location.protocol !== "file:";
+  let apiKey = load(API_KEY, "");
+  function writeKeyFile(k) { if (onServer) fetch("/api/key", { method: "POST", body: k }).catch(() => {}); }
+  async function syncKeyFile() {
+    if (!onServer) return;
+    try {
+      const fileKey = (await (await fetch("/api/key")).text()).trim();
+      if (fileKey) { apiKey = fileKey; save(API_KEY, fileKey); }
+      else if (apiKey) writeKeyFile(apiKey);
+    } catch {}
+  }
+  const keyReady = syncKeyFile();
 
   function sing(song) {
     song = song.trim();
     if (!song) return;
-    const recent = [song, ...loadRecent().filter(s => s.toLowerCase() !== song.toLowerCase())].slice(0, 12);
-    saveRecent(recent);
+    lastSong = song;
+    save(RECENT_KEY, [song, ...load(RECENT_KEY, []).filter(s => s.toLowerCase() !== song.toLowerCase())].slice(0, 12));
     renderRecent();
     const tone = document.querySelector('input[name=tone]:checked').value;
     const query = `${song} karaoke ${tone}`.trim();
-    window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(query), "_blank");
-    $("q").value = "";
-    $("q").focus();
+    $("q").value = song;
+    search(query);
+  }
+
+  // Kết quả tìm được lưu lại 7 ngày để tìm lại bài cũ không tốn lượt API.
+  const CACHE_KEY = "karaoke_cache_v2";
+  const CACHE_TTL = 7 * 24 * 3600 * 1000;
+  const CACHE_MAX = 300;
+  // Ngày (giờ Mỹ Pacific, lúc Google reset hạn mức) mà API đã hết lượt.
+  const QUOTA_KEY = "karaoke_quota_out";
+  const pacificDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+
+  function cacheGet(query) {
+    const hit = load(CACHE_KEY, {})[query.toLowerCase()];
+    return hit && Date.now() - hit.t < CACHE_TTL ? hit.items : null;
+  }
+  function cachePut(query, items) {
+    const cache = load(CACHE_KEY, {});
+    cache[query.toLowerCase()] = { t: Date.now(), items };
+    const keys = Object.keys(cache).sort((a, b) => cache[b].t - cache[a].t);
+    keys.slice(CACHE_MAX).forEach(k => delete cache[k]);
+    save(CACHE_KEY, cache);
+  }
+
+  // Không dùng được API (chưa có key, hết lượt, lỗi) thì mở thẳng YouTube như bình thường.
+  function openOnYouTube(query) {
+    showMsg(`Đã mở kết quả trên YouTube. <a href="${ytSearchUrl(query)}" target="_blank">Bấm vào đây nếu chưa thấy</a>.`);
+    if (!window.open(ytSearchUrl(query), "_blank")) location.href = ytSearchUrl(query);
+  }
+
+  async function search(query) {
+    $("resultsBox").hidden = false;
+    $("resultsTitle").textContent = `Kết quả: ${query}`;
+    $("openYt").href = ytSearchUrl(query);
+    const cached = cacheGet(query);
+    if (cached) { renderResults(cached); return; }
+    await keyReady;
+    const key = apiKey;
+    if (!key || load(QUOTA_KEY, "") === pacificDay()) { openOnYouTube(query); return; }
+    showMsg("Đang tìm...");
+    const params = new URLSearchParams({ part: "snippet", type: "video", maxResults: "24",
+      q: query, regionCode: "VN", relevanceLanguage: "vi", videoEmbeddable: "true", key });
+    try {
+      const res = await fetch("https://www.googleapis.com/youtube/v3/search?" + params);
+      const data = await res.json();
+      if (data.error) throw data.error;
+      const items = (data.items || []).map(it => {
+        const s = it.snippet;
+        return { id: it.id.videoId, title: decode(s.title), channel: decode(s.channelTitle),
+                 thumb: (s.thumbnails.high || s.thumbnails.medium || s.thumbnails.default).url };
+      });
+      cachePut(query, items);
+      renderResults(items);
+    } catch (err) {
+      if (err?.errors?.[0]?.reason === "quotaExceeded") save(QUOTA_KEY, pacificDay());
+      openOnYouTube(query);
+    }
+  }
+
+  function showMsg(html) { $("results").innerHTML = `<p class="msg">${html}</p>`; }
+
+  function renderResults(items) {
+    const box = $("results");
+    if (!items.length) { showMsg("Không có kết quả."); return; }
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(it => {
+      const a = document.createElement("a");
+      a.className = "video";
+      a.href = "https://www.youtube.com/watch?v=" + it.id;
+      a.target = "_blank";
+      a.onclick = e => { if (play(it)) { e.preventDefault(); mark(a); } };
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = it.thumb;
+      const t = document.createElement("div"); t.className = "t"; t.textContent = it.title;
+      const c = document.createElement("div"); c.className = "c"; c.textContent = it.channel;
+      a.append(img, t, c);
+      grid.appendChild(a);
+    });
+    box.innerHTML = "";
+    box.appendChild(grid);
+  }
+
+  // Phát ngay trong trang. Mở từ file (không qua server) thì YouTube chặn video nhúng,
+  // nên để link mở YouTube như thường.
+  function play(it) {
+    if (!onServer) return false;
+    $("player").src = `https://www.youtube.com/embed/${it.id}?autoplay=1&rel=0`;
+    $("nowTitle").textContent = it.title;
+    $("nowYt").href = "https://www.youtube.com/watch?v=" + it.id;
+    $("playerBox").hidden = false;
+    $("playerBox").scrollIntoView({ behavior: "smooth", block: "start" });
+    return true;
+  }
+  function mark(a) {
+    document.querySelectorAll(".video.playing").forEach(v => v.classList.remove("playing"));
+    a.classList.add("playing");
   }
 
   function chips(el, items) {
@@ -97,13 +274,24 @@
   }
 
   function renderRecent() {
-    const recent = loadRecent();
+    const recent = load(RECENT_KEY, []);
     $("recentBox").hidden = recent.length === 0;
     chips($("recent"), recent);
   }
 
   $("f").onsubmit = e => { e.preventDefault(); sing($("q").value); };
-  $("clear").onclick = () => { saveRecent([]); renderRecent(); };
+  $("closePlayer").onclick = () => { $("player").src = ""; $("playerBox").hidden = true; mark(document.createElement("a")); };
+  $("clear").onclick = () => { save(RECENT_KEY, []); renderRecent(); };
+  $("changeKey").onclick = () => { $("keyInput").value = apiKey; $("keySection").hidden = false; $("keyInput").focus(); };
+  $("keySave").onclick = () => {
+    apiKey = $("keyInput").value.trim();
+    save(API_KEY, apiKey);
+    writeKeyFile(apiKey);
+    save(QUOTA_KEY, "");
+    $("keySection").hidden = true;
+    if (lastSong) sing(lastSong);
+  };
+  document.querySelectorAll('input[name=tone]').forEach(r => r.onchange = () => lastSong && apiKey && sing(lastSong));
   chips($("popular"), POPULAR);
   renderRecent();
 </script>
