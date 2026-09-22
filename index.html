@@ -17,6 +17,11 @@
   form input { flex:1; min-width:0; font-size:1.5rem; padding:.7em .9em; border-radius:14px;
                border:2px solid var(--line); background:var(--card); color:var(--fg); outline:none; }
   form input:focus { border-color:var(--accent); }
+  #mic { background:var(--card); border:2px solid var(--line); font-size:1.5rem; padding:0 .7em; }
+  #mic.on { background:var(--accent); border-color:var(--accent); animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity:.6; } }
+  .voicehint { color:var(--muted); font-size:.95rem; margin-top:10px; min-height:1.4em; text-align:center; }
+  .voicehint a { color:var(--accent); }
   button { font-size:1.3rem; padding:0 1.1em; border:0; border-radius:14px; cursor:pointer;
            background:var(--accent); color:#fff; font-weight:600; }
   .tones { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:16px 0 0; }
@@ -72,8 +77,10 @@
 
   <form id="f">
     <input id="q" autofocus autocomplete="off" placeholder="Nhập tên bài hát...">
+    <button type="button" id="mic" title="Nói tên bài hát" hidden>🎤</button>
     <button type="submit">Tìm</button>
   </form>
+  <div class="voicehint" id="voiceHint"></div>
 
   <div class="tones">
     <label><input type="radio" name="tone" value="" checked><span>Tất cả</span></label>
@@ -89,7 +96,7 @@
       <ol>
         <li>Vào <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">Google Cloud Console</a>, tạo project rồi bấm <b>Enable</b> (YouTube Data API v3).</li>
         <li>Vào <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Credentials</a> → <b>Create credentials</b> → <b>API key</b>, copy key.</li>
-        <li>Dán vào ô dưới đây. Key chỉ lưu trên trình duyệt của máy này.</li>
+        <li>Dán vào ô dưới đây rồi bấm Lưu. Key được lưu vào file api-key.txt trên máy này.</li>
       </ol>
       <div class="row">
         <input id="keyInput" placeholder="Dán API key vào đây (AIza...)" autocomplete="off">
@@ -158,6 +165,7 @@
     song = song.trim();
     if (!song) return;
     lastSong = song;
+    stopPlayer();
     save(RECENT_KEY, [song, ...load(RECENT_KEY, []).filter(s => s.toLowerCase() !== song.toLowerCase())].slice(0, 12));
     renderRecent();
     const tone = document.querySelector('input[name=tone]:checked').value;
@@ -257,6 +265,11 @@
     $("playerBox").scrollIntoView({ behavior: "smooth", block: "start" });
     return true;
   }
+  function stopPlayer() {
+    $("player").src = "";
+    $("playerBox").hidden = true;
+    document.querySelectorAll(".video.playing").forEach(v => v.classList.remove("playing"));
+  }
   function mark(a) {
     document.querySelectorAll(".video.playing").forEach(v => v.classList.remove("playing"));
     a.classList.add("playing");
@@ -280,7 +293,33 @@
   }
 
   $("f").onsubmit = e => { e.preventDefault(); sing($("q").value); };
-  $("closePlayer").onclick = () => { $("player").src = ""; $("playerBox").hidden = true; mark(document.createElement("a")); };
+
+  // Tìm bằng giọng nói. Brave có API nhưng đã tắt dịch vụ nhận giọng nói,
+  // nên trên Brave chỉ hiện link mở trang bằng Edge.
+  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (Speech && !navigator.brave) {
+    const rec = new Speech();
+    rec.lang = "vi-VN";
+    rec.interimResults = true;
+    let listening = false;
+    rec.onstart = () => { listening = true; $("mic").classList.add("on"); $("voiceHint").textContent = "Đang nghe... hãy nói tên bài hát"; };
+    rec.onend = () => { listening = false; $("mic").classList.remove("on"); if ($("voiceHint").textContent.startsWith("Đang nghe")) $("voiceHint").textContent = ""; };
+    rec.onresult = e => {
+      const r = e.results[e.results.length - 1];
+      $("q").value = r[0].transcript;
+      if (r.isFinal) { $("voiceHint").textContent = ""; sing(r[0].transcript); }
+    };
+    rec.onerror = e => {
+      $("voiceHint").textContent = e.error === "not-allowed"
+        ? "Trình duyệt chưa cho dùng micro. Bấm biểu tượng ổ khoá trên thanh địa chỉ và cho phép Micro."
+        : e.error === "no-speech" ? "Không nghe thấy gì, bấm 🎤 và nói lại nhé." : "";
+    };
+    $("mic").hidden = false;
+    $("mic").onclick = () => listening ? rec.stop() : rec.start();
+  } else if (navigator.brave && onServer) {
+    $("voiceHint").innerHTML = `Muốn tìm bằng giọng nói? <a href="microsoft-edge:${location.origin}/">Mở trang bằng Edge</a>`;
+  }
+  $("closePlayer").onclick = stopPlayer;
   $("clear").onclick = () => { save(RECENT_KEY, []); renderRecent(); };
   $("changeKey").onclick = () => { $("keyInput").value = apiKey; $("keySection").hidden = false; $("keyInput").focus(); };
   $("keySave").onclick = () => {
