@@ -20,11 +20,16 @@
   #mic { background:var(--card); border:2px solid var(--line); font-size:1.5rem; padding:0 .7em; }
   #mic.on { background:var(--accent); border-color:var(--accent); animation:pulse 1s infinite; }
   @keyframes pulse { 50% { opacity:.6; } }
-  .voicehint { color:var(--muted); font-size:.95rem; margin-top:10px; min-height:1.4em; text-align:center; }
+  .voicehint { color:var(--muted); font-size:.95rem; margin-top:8px; text-align:center; }
+  .voicehint:empty { display:none; }
+  /* Thanh tìm kiếm luôn dính trên đầu trang khi cuộn xuống. */
+  .searchbar { position:sticky; top:0; z-index:10; width:100%; background:var(--bg);
+               display:flex; flex-direction:column; align-items:center; padding:12px 0 14px;
+               border-bottom:1px solid var(--line); }
   .voicehint a { color:var(--accent); }
   button { font-size:1.3rem; padding:0 1.1em; border:0; border-radius:14px; cursor:pointer;
            background:var(--accent); color:#fff; font-weight:600; }
-  .tones { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:16px 0 0; }
+  .tones { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:12px 0 0; }
   .tones label { cursor:pointer; }
   .tones input { display:none; }
   .tones span { display:inline-block; padding:.45em 1em; border-radius:999px; background:var(--card);
@@ -75,19 +80,21 @@
 <div class="wrap">
   <h1>🎤 Hát <span>Karaoke</span></h1>
 
-  <form id="f">
-    <input id="q" autofocus autocomplete="off" placeholder="Nhập tên bài hát...">
-    <button type="button" id="mic" title="Nói tên bài hát" hidden>🎤</button>
-    <button type="submit">Tìm</button>
-  </form>
-  <div class="voicehint" id="voiceHint"></div>
+  <div class="searchbar" id="searchbar">
+    <form id="f">
+      <input id="q" autofocus autocomplete="off" placeholder="Nhập tên bài hát...">
+      <button type="button" id="mic" title="Nói tên bài hát" hidden>🎤</button>
+      <button type="submit">Tìm</button>
+    </form>
+    <div class="voicehint" id="voiceHint"></div>
 
-  <div class="tones">
-    <label><input type="radio" name="tone" value="" checked><span>Tất cả</span></label>
-    <label><input type="radio" name="tone" value="tone nam"><span>Tone nam</span></label>
-    <label><input type="radio" name="tone" value="tone nữ"><span>Tone nữ</span></label>
-    <label><input type="radio" name="tone" value="song ca"><span>Song ca</span></label>
-    <label><input type="radio" name="tone" value="beat"><span>Beat</span></label>
+    <div class="tones">
+      <label><input type="radio" name="tone" value="" checked><span>Tất cả</span></label>
+      <label><input type="radio" name="tone" value="tone nam"><span>Tone nam</span></label>
+      <label><input type="radio" name="tone" value="tone nữ"><span>Tone nữ</span></label>
+      <label><input type="radio" name="tone" value="song ca"><span>Song ca</span></label>
+      <label><input type="radio" name="tone" value="beat"><span>Beat</span></label>
+    </div>
   </div>
 
   <section id="keySection" hidden>
@@ -262,7 +269,9 @@
     $("nowTitle").textContent = it.title;
     $("nowYt").href = "https://www.youtube.com/watch?v=" + it.id;
     $("playerBox").hidden = false;
-    $("playerBox").scrollIntoView({ behavior: "smooth", block: "start" });
+    // Cuộn tới khung phát, chừa chỗ cho thanh tìm kiếm dính ở trên.
+    const top = $("playerBox").getBoundingClientRect().top + scrollY - $("searchbar").offsetHeight - 12;
+    scrollTo({ top, behavior: "smooth" });
     return true;
   }
   function stopPlayer() {
