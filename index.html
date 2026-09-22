@@ -22,6 +22,13 @@
   @keyframes pulse { 50% { opacity:.6; } }
   .voicehint { color:var(--muted); font-size:.95rem; margin-top:8px; text-align:center; }
   .voicehint:empty { display:none; }
+  .field { position:relative; flex:1; min-width:0; display:flex; }
+  .field input { width:100%; }
+  .suggest { position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:20; background:var(--card);
+             border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  .suggest div { padding:.55em .9em; font-size:1.25rem; cursor:pointer; }
+  .suggest div:hover, .suggest div.active { background:#2c2c2c; }
+  .suggest div.recent::before { content:"🕘  "; }
   /* Thanh tìm kiếm luôn dính trên đầu trang khi cuộn xuống. */
   .searchbar { position:sticky; top:0; z-index:10; width:100%; background:var(--bg);
                display:flex; flex-direction:column; align-items:center; padding:12px 0 14px;
@@ -82,7 +89,10 @@
 
   <div class="searchbar" id="searchbar">
     <form id="f">
-      <input id="q" autofocus autocomplete="off" placeholder="Nhập tên bài hát...">
+      <div class="field">
+        <input id="q" autofocus autocomplete="off" placeholder="Nhập tên bài hát...">
+        <div class="suggest" id="suggest" hidden></div>
+      </div>
       <button type="button" id="mic" title="Nói tên bài hát" hidden>🎤</button>
       <button type="submit">Tìm</button>
     </form>
@@ -172,6 +182,7 @@
     song = song.trim();
     if (!song) return;
     lastSong = song;
+    hideSuggest();
     stopPlayer();
     save(RECENT_KEY, [song, ...load(RECENT_KEY, []).filter(s => s.toLowerCase() !== song.toLowerCase())].slice(0, 12));
     renderRecent();
@@ -302,6 +313,74 @@
   }
 
   $("f").onsubmit = e => { e.preventDefault(); sing($("q").value); };
+
+  // Gợi ý tên bài khi đang gõ: bài đã tìm gần đây + gợi ý tìm kiếm của YouTube
+  // (miễn phí, không tốn lượt API). Bỏ các chữ như "karaoke", "tone nam" vì trang tự thêm.
+  const EXTRA_WORDS = /(^|\s)(karaoke|beat|tone nam|tone nữ|song ca|lyrics?|mv|official)(?=\s|$)/giu;
+  let sugItems = [], sugIndex = -1, sugSeq = 0, sugTimer;
+  function cleanSong(text) { return text.replace(EXTRA_WORDS, " ").replace(/\s+/g, " ").trim(); }
+  function showSuggest(list) {
+    sugItems = list;
+    sugIndex = -1;
+    const box = $("suggest");
+    box.innerHTML = "";
+    list.forEach((item, i) => {
+      const d = document.createElement("div");
+      d.textContent = item.text;
+      if (item.recent) d.className = "recent";
+      d.onmousedown = e => { e.preventDefault(); pickSuggest(i); };
+      box.appendChild(d);
+    });
+    box.hidden = list.length === 0;
+  }
+  function hideSuggest() { sugSeq++; clearTimeout(sugTimer); showSuggest([]); }
+  function pickSuggest(i) { sing(sugItems[i].text); }
+  function updateSuggest() {
+    const q = $("q").value.trim();
+    if (!q) { hideSuggest(); return; }
+    const lower = q.toLowerCase();
+    const recent = load(RECENT_KEY, []).filter(s => s.toLowerCase().includes(lower)).slice(0, 3)
+      .map(text => ({ text, recent: true }));
+    clearTimeout(sugTimer);
+    showSuggest(recent);
+    const seq = ++sugSeq;
+    sugTimer = setTimeout(() => {
+      const cb = "karaokeSuggest" + seq;
+      const script = document.createElement("script");
+      const done = () => { delete window[cb]; script.remove(); };
+      window[cb] = data => {
+        done();
+        if (seq !== sugSeq) return;
+        const seen = new Set(recent.map(r => r.text.toLowerCase()));
+        const more = [];
+        for (const item of data[1] || []) {
+          const text = cleanSong(item[0]);
+          if (text && !seen.has(text.toLowerCase())) { seen.add(text.toLowerCase()); more.push({ text }); }
+        }
+        showSuggest([...recent, ...more].slice(0, 8));
+      };
+      script.onerror = done;
+      script.src = "https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&hl=vi&ie=utf-8&oe=utf-8"
+        + "&callback=" + cb + "&q=" + encodeURIComponent(q);
+      document.head.appendChild(script);
+    }, 200);
+  }
+  $("q").addEventListener("input", updateSuggest);
+  $("q").addEventListener("blur", () => setTimeout(hideSuggest, 150));
+  $("q").addEventListener("keydown", e => {
+    if ($("suggest").hidden) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = sugItems.length;
+      sugIndex = e.key === "ArrowDown" ? (sugIndex + 1) % n : (sugIndex - 1 + n) % n;
+      [...$("suggest").children].forEach((d, i) => d.classList.toggle("active", i === sugIndex));
+    } else if (e.key === "Enter" && sugIndex >= 0) {
+      e.preventDefault();
+      pickSuggest(sugIndex);
+    } else if (e.key === "Escape") {
+      hideSuggest();
+    }
+  });
 
   // Tìm bằng giọng nói. Brave có API nhưng đã tắt dịch vụ nhận giọng nói,
   // nên trên Brave chỉ hiện link mở trang bằng Edge.
