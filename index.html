@@ -24,6 +24,12 @@
   .voicehint:empty { display:none; }
   .field { position:relative; flex:1; min-width:0; display:flex; }
   .field input { width:100%; }
+  /* Màn hình dọc, hẹp (điện thoại): ô tìm chiếm cả hàng, nút 🎤 và Tìm xuống dòng dưới. */
+  @media (orientation: portrait) and (max-width: 700px) {
+    form { flex-wrap:wrap; }
+    .field { flex:1 1 100%; }
+    form > button { flex:1; padding:.6em 1em; }
+  }
   .suggest { position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:20; background:var(--card);
              border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   .suggest div { padding:.55em .9em; font-size:1.25rem; cursor:pointer; }
