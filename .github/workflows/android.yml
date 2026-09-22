@@ -1,0 +1,55 @@
+name: App Android
+
+# Build file APK mỗi khi trang karaoke hoặc code app thay đổi trên nhánh main,
+# rồi đăng lên mục Releases để hộp TV tải về qua link cố định:
+# https://github.com/<chủ repo>/<tên repo>/releases/latest/download/karaoke.apk
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - android/**
+      - .github/workflows/android.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build APK
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          # Ký bằng khoá cố định (lưu trong secrets) để bản mới cài đè được lên bản cũ.
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/karaoke.p12"
+            export KEYSTORE_FILE="$RUNNER_TEMP/karaoke.p12"
+          fi
+          gradle --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/karaoke.apk"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-${{ github.run_number }}" "$RUNNER_TEMP/karaoke.apk" \
+            --repo "${{ github.repository }}" \
+            --title "App Android (bản ${{ github.run_number }})" \
+            --notes "Tải về hộp TV: https://github.com/${{ github.repository }}/releases/latest/download/karaoke.apk" \
+            --latest

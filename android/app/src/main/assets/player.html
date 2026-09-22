@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hát Karaoke</title>
+<style>
+  html, body { margin:0; width:100%; height:100%; background:#000; overflow:hidden; }
+  #player, iframe { position:fixed; top:0; left:0; width:100%; height:100%; border:0; }
+  #hint { position:fixed; left:0; right:0; bottom:24px; text-align:center; color:#fff; font:20px sans-serif;
+          text-shadow:0 1px 4px #000; transition:opacity .5s; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="player"></div>
+<div id="hint">OK: dừng / phát &nbsp;·&nbsp; ◀ ▶: tua 10 giây &nbsp;·&nbsp; Back: chọn bài khác</div>
+<script>
+  // Phát video toàn màn hình bằng YouTube IFrame API. Video không cho nhúng hoặc không tải được
+  // thì chuyển sang trang m.youtube. Hát xong thì tự quay về màn hình tìm bài.
+  var id = (location.search.match(/[?&]v=([^&]+)/) || [])[1] || "";
+  var player = null, ready = false;
+
+  function openMobileYouTube() { location.replace("https://m.youtube.com/watch?v=" + id); }
+
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player("player", {
+      videoId: decodeURIComponent(id),
+      playerVars: { autoplay: 1, rel: 0, playsinline: 1, fs: 0 },
+      events: {
+        onReady: function (e) { ready = true; e.target.playVideo(); },
+        onError: openMobileYouTube,
+        onStateChange: function (e) {
+          if (e.data === 0 && window.KaraokePlayer) KaraokePlayer.close();
+        }
+      }
+    });
+  }
+  setTimeout(function () { if (!ready) openMobileYouTube(); }, 15000);
+  setTimeout(function () { document.getElementById("hint").style.opacity = 0; }, 6000);
+
+  // Gọi từ app khi bấm nút trên remote.
+  function remote(action) {
+    if (!ready) return;
+    if (action === "toggle") {
+      if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+    } else if (action === "back") {
+      player.seekTo(Math.max(0, player.getCurrentTime() - 10), true);
+    } else if (action === "forward") {
+      player.seekTo(player.getCurrentTime() + 10, true);
+    }
+  }
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>

@@ -12,6 +12,18 @@ Gõ tên bài hát, chọn video karaoke và hát ngay trong trang. Chạy trên
 4. Ngoài Desktop sẽ tự có biểu tượng micro **Hát Karaoke**. Những lần sau chỉ cần nhấp đúp biểu tượng đó.
    - Nếu chuyển thư mục đi chỗ khác, nhấp đúp `Karaoke.bat` một lần để biểu tượng ngoài Desktop cập nhật theo.
 
+## App cho hộp TV Android
+
+Dành cho hộp TV Android (kể cả Android 7) không còn dùng được app YouTube. Không cần API key.
+
+1. Trên hộp TV, mở trình duyệt và vào link:
+   **https://github.com/troixanhvuctham/karaoke/releases/latest/download/karaoke.apk**
+2. Mở file `karaoke.apk` vừa tải để cài. Nếu máy hỏi, cho phép **cài ứng dụng từ nguồn không xác định** (Unknown sources).
+3. Mở app **Hát Karaoke** trên màn hình chính.
+
+Dùng remote: mũi tên để di chuyển, **OK** để chọn. Khi đang phát: **OK** dừng/phát, **◀ ▶** tua 10 giây, **Back** chọn bài khác. Hát xong bài, app tự quay về màn hình tìm bài.
+Có bản mới thì tải lại link trên và cài đè, không cần gỡ app cũ.
+
 ## Lấy YouTube API key (miễn phí)
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com), đăng nhập Gmail, tạo một project mới.

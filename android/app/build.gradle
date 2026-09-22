@@ -1,0 +1,57 @@
+plugins {
+    id "com.android.application"
+}
+
+// Số bản build do GitHub Actions cấp; mỗi bản mới có versionCode lớn hơn để cài đè được.
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1") as int
+// Khoá ký app (lưu trong GitHub secrets). Không có thì ký bằng khoá debug để vẫn build được.
+def keystoreFile = System.getenv("KEYSTORE_FILE")
+
+android {
+    namespace "com.hatkaraoke.app"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.hatkaraoke.app"
+        minSdk 21
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile) {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias "karaoke"
+                keyPassword System.getenv("KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystoreFile ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // Trang index.html dùng chung với bản máy tính, chép vào app lúc build.
+    sourceSets.main.assets.srcDirs += layout.buildDirectory.dir("generated/page")
+}
+
+def copyPage = tasks.register("copyPage", Copy) {
+    from rootProject.file("../index.html")
+    into layout.buildDirectory.dir("generated/page")
+}
+preBuild.dependsOn copyPage
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.11.0"
+}
