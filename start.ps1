@@ -24,14 +24,14 @@ function Write-Key($key) {
     [System.IO.File]::WriteAllText($keyFile, $keyHelp + $key + "`r`n", (New-Object System.Text.UTF8Encoding $true))
 }
 
-# Mở bằng Brave; máy không có Brave thì dùng trình duyệt mặc định.
+# Mở bằng Chrome (có tìm bằng giọng nói); máy không có Chrome thì dùng trình duyệt mặc định.
 function Open-Page {
-    $brave = @(
-        "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe",
-        "${env:ProgramFiles(x86)}\BraveSoftware\Brave-Browser\Application\brave.exe",
-        "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\Application\brave.exe"
+    $chrome = @(
+        "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+        "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($brave) { Start-Process $brave $url } else { Start-Process $url }
+    if ($chrome) { Start-Process $chrome $url } else { Start-Process $url }
 }
 
 # Tạo shortcut "Hát Karaoke" có icon micro ngoài Desktop (cập nhật lại nếu thư mục bị chuyển chỗ).
