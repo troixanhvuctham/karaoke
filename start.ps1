@@ -24,14 +24,18 @@ function Write-Key($key) {
     [System.IO.File]::WriteAllText($keyFile, $keyHelp + $key + "`r`n", (New-Object System.Text.UTF8Encoding $true))
 }
 
-# Mở bằng Chrome (có tìm bằng giọng nói); máy không có Chrome thì dùng trình duyệt mặc định.
+# Mở thành cửa sổ riêng như một ứng dụng (không có thanh địa chỉ, không có tab) để người dùng
+# không nhầm thanh địa chỉ với ô tìm bài. Ưu tiên Chrome, không có thì Edge (có sẵn trên Windows),
+# cả hai đều hỗ trợ tìm bằng giọng nói. Không có cả hai thì dùng trình duyệt mặc định.
 function Open-Page {
-    $chrome = @(
+    $browser = @(
         "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
         "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
-        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
+        "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+        "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($chrome) { Start-Process $chrome $url } else { Start-Process $url }
+    if ($browser) { Start-Process $browser "--app=$url --start-maximized" } else { Start-Process $url }
 }
 
 # Tạo shortcut "Hát Karaoke" có icon micro ngoài Desktop (cập nhật lại nếu thư mục bị chuyển chỗ).
