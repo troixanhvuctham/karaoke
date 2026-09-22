@@ -56,12 +56,67 @@ function Update-Shortcut {
 }
 Update-Shortcut
 
-# Server đã chạy từ lần trước thì chỉ cần mở trình duyệt.
-try {
-    Invoke-WebRequest $url -UseBasicParsing -TimeoutSec 2 | Out-Null
+# Tìm cửa sổ karaoke đang mở (theo tiêu đề trang) để đưa lên trước thay vì mở thêm cửa sổ.
+Add-Type @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class KaraokeWindow {
+    delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f, IntPtr l);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+    public static IntPtr Find(string title) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((h, l) => {
+            if (!IsWindowVisible(h)) return true;
+            var sb = new StringBuilder(256);
+            GetWindowText(h, sb, 256);
+            if (sb.ToString() != title) return true;
+            found = h;
+            return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+    public static bool Focus(string title) {
+        IntPtr found = Find(title);
+        if (found == IntPtr.Zero) return false;
+        if (IsIconic(found)) ShowWindow(found, 9);
+        SetForegroundWindow(found);
+        return true;
+    }
+}
+"@
+$windowTitle = "Hát Karaoke"
+
+# Mở cửa sổ rồi chờ nó hiện ra (tối đa 30 giây), để các lần nhấp đúp tiếp theo thấy cửa sổ này.
+function Open-PageAndWait {
     Open-Page
+    for ($i = 0; $i -lt 100; $i++) {
+        Start-Sleep -Milliseconds 300
+        if ([KaraokeWindow]::Focus($windowTitle)) { return }
+    }
+}
+
+# Nhấp đúp nhiều lần liên tiếp: các lần sau xếp hàng chờ lần đầu mở xong cửa sổ,
+# rồi chỉ đưa cửa sổ đó lên trước. Chờ quá lâu (đang nhập key ở Notepad) thì bỏ qua.
+$mutex = New-Object System.Threading.Mutex($false, "Local\HatKaraokeLauncher")
+try { $owned = $mutex.WaitOne(60000) } catch [System.Threading.AbandonedMutexException] { $owned = $true }
+if (-not $owned) { exit }
+if ([KaraokeWindow]::Focus($windowTitle)) { $mutex.ReleaseMutex(); exit }
+
+# Server đã chạy từ lần trước thì chỉ cần mở cửa sổ.
+$tcp = New-Object System.Net.Sockets.TcpClient
+$serverRunning = try { $tcp.ConnectAsync("127.0.0.1", $port).Wait(1000) } catch { $false }
+$tcp.Close()
+if ($serverRunning) {
+    Open-PageAndWait
+    $mutex.ReleaseMutex()
     exit
-} catch {}
+}
 
 # Lần chạy đầu tiên: tạo file key và mở Notepad cho người dùng dán key vào.
 if (-not (Test-Path $keyFile)) {
@@ -74,8 +129,19 @@ $listener.Prefixes.Add($url)
 $listener.Start()
 Open-Page
 
+# Server phải trả trang ngay thì cửa sổ mới hiện được, nên vừa phục vụ vừa theo dõi:
+# khi cửa sổ đã hiện (hoặc quá 30 giây) thì mới cho các lần nhấp đúp đang chờ chạy tiếp.
+$released = $false
+$deadline = (Get-Date).AddSeconds(30)
 while ($listener.IsListening) {
-    $ctx = $listener.GetContext()
+    $next = $listener.GetContextAsync()
+    while (-not $next.Wait(300)) {
+        if (-not $released -and (([KaraokeWindow]::Find($windowTitle) -ne [IntPtr]::Zero) -or (Get-Date) -gt $deadline)) {
+            $mutex.ReleaseMutex()
+            $released = $true
+        }
+    }
+    $ctx = $next.Result
     $req = $ctx.Request
     $res = $ctx.Response
     $path = $req.Url.AbsolutePath
