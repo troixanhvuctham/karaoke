@@ -9,7 +9,7 @@ $keyFile = Join-Path $PSScriptRoot "api-key.txt"
 $keyHelp = @"
 # Dán YouTube API key (bắt đầu bằng AIza...) vào dòng trống bên dưới,
 # bấm Ctrl+S để lưu, rồi đóng Notepad. Trang karaoke sẽ tự mở.
-# Không có key cũng được: cứ đóng Notepad, trang vẫn chạy (bấm tìm sẽ mở YouTube).
+# Không có key cũng được: cứ đóng Notepad, trang vẫn tìm bài bình thường.
 
 "@
 
@@ -124,6 +124,95 @@ if (-not (Test-Path $keyFile)) {
     Start-Process notepad $keyFile -Wait
 }
 
+# Tìm video trên YouTube không cần API key (dùng khi không có key hoặc key hết lượt):
+# tải trang kết quả tìm kiếm rồi đọc dữ liệu ytInitialData trong trang, giống app Android.
+# Trả về JSON [{id, title, channel, thumb}], hoặc "null" nếu không đọc được.
+Add-Type -ReferencedAssemblies System.Web.Extensions @"
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Web.Script.Serialization;
+public static class KaraokeSearch {
+    const int MaxResults = 24;
+    public static string SearchJson(string query) {
+        try {
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            var req = (HttpWebRequest)WebRequest.Create(
+                "https://www.youtube.com/results?hl=vi&gl=VN&search_query=" + Uri.EscapeDataString(query));
+            req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
+            req.Headers["Accept-Language"] = "vi-VN,vi;q=0.9";
+            req.Headers["Cookie"] = "CONSENT=YES+";
+            req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            req.Timeout = 15000;
+            string html;
+            using (var resp = req.GetResponse())
+            using (var reader = new StreamReader(resp.GetResponseStream(), Encoding.UTF8)) html = reader.ReadToEnd();
+            const string marker = "var ytInitialData = ";
+            int start = html.IndexOf(marker);
+            if (start < 0) return "null";
+            start += marker.Length;
+            int end = html.IndexOf(";</script>", start);
+            if (end < 0) return "null";
+            var json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 1000 };
+            var results = new List<Dictionary<string, string>>();
+            Collect(json.DeserializeObject(html.Substring(start, end - start)), results);
+            return json.Serialize(results);
+        } catch {
+            return "null";
+        }
+    }
+    // Duyệt toàn bộ dữ liệu, lấy mọi "videoRenderer" (bỏ qua Shorts và quảng cáo).
+    static void Collect(object node, List<Dictionary<string, string>> results) {
+        if (results.Count >= MaxResults) return;
+        var obj = node as Dictionary<string, object>;
+        if (obj != null) {
+            foreach (var kv in obj) {
+                var video = kv.Value as Dictionary<string, object>;
+                if (kv.Key == "videoRenderer" && video != null) {
+                    var item = ToResult(video);
+                    if (item != null && results.Count < MaxResults) results.Add(item);
+                } else {
+                    Collect(kv.Value, results);
+                }
+            }
+            return;
+        }
+        var arr = node as object[];
+        if (arr != null) foreach (var child in arr) Collect(child, results);
+    }
+    static Dictionary<string, string> ToResult(Dictionary<string, object> v) {
+        object idValue;
+        v.TryGetValue("videoId", out idValue);
+        var id = idValue as string;
+        var title = FirstRun(v, "title");
+        if (string.IsNullOrEmpty(id) || title == "") return null;
+        var channel = FirstRun(v, "ownerText");
+        if (channel == "") channel = FirstRun(v, "longBylineText");
+        return new Dictionary<string, string> {
+            { "id", id }, { "title", title }, { "channel", channel },
+            { "thumb", "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg" }
+        };
+    }
+    static string FirstRun(Dictionary<string, object> v, string key) {
+        object value;
+        if (!v.TryGetValue(key, out value)) return "";
+        var text = value as Dictionary<string, object>;
+        if (text == null) return "";
+        object runs, simple;
+        if (text.TryGetValue("runs", out runs)) {
+            var list = runs as object[];
+            var first = list != null && list.Length > 0 ? list[0] as Dictionary<string, object> : null;
+            object t;
+            if (first != null && first.TryGetValue("text", out t)) return t as string ?? "";
+        }
+        if (text.TryGetValue("simpleText", out simple)) return simple as string ?? "";
+        return "";
+    }
+}
+"@
+
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add($url)
 $listener.Start()
@@ -155,6 +244,12 @@ while ($listener.IsListening) {
         # Chỉ nhận ghi key từ chính trang karaoke, không cho trang web khác ghi đè.
         Write-Key (New-Object System.IO.StreamReader($req.InputStream)).ReadToEnd().Trim()
         $bytes = [System.Text.Encoding]::UTF8.GetBytes("ok")
+    } elseif ($path -eq "/api/search") {
+        # Tự giải mã tham số q theo UTF-8 (QueryString của HttpListener có thể giải mã sai tiếng Việt).
+        $q = [regex]::Match($req.Url.Query, "[?&]q=([^&]*)").Groups[1].Value
+        $q = [System.Uri]::UnescapeDataString($q.Replace("+", " "))
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes([KaraokeSearch]::SearchJson($q))
+        $res.ContentType = "application/json; charset=utf-8"
     } else {
         $bytes = [System.Text.Encoding]::UTF8.GetBytes("Not found")
         $res.StatusCode = 404

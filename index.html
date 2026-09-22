@@ -115,7 +115,7 @@
 
   <section id="keySection" hidden>
     <div class="keybox">
-      <b>Tuỳ chọn: thêm YouTube API key (miễn phí) để hiện kết quả ngay trong trang.</b> Không có key thì trang tự mở YouTube.
+      <b>Tuỳ chọn: thêm YouTube API key (miễn phí) để hiện kết quả ngay trong trang.</b> Không có key trang vẫn tìm được (tự tìm trên YouTube).
       <ol>
         <li>Vào <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">Google Cloud Console</a>, tạo project rồi bấm <b>Enable</b> (YouTube Data API v3).</li>
         <li>Vào <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Credentials</a> → <b>Create credentials</b> → <b>API key</b>, copy key.</li>
@@ -257,7 +257,7 @@
     }
     await keyReady;
     const key = apiKey;
-    if (!key || load(QUOTA_KEY, "") === pacificDay()) { openOnYouTube(query); return; }
+    if (!key || load(QUOTA_KEY, "") === pacificDay()) { searchWithoutKey(query); return; }
     showMsg("Đang tìm...");
     const params = new URLSearchParams({ part: "snippet", type: "video", maxResults: "24",
       q: query, regionCode: "VN", relevanceLanguage: "vi", videoEmbeddable: "true", key });
@@ -274,8 +274,21 @@
       renderResults(items);
     } catch (err) {
       if (err && err.errors && err.errors[0] && err.errors[0].reason === "quotaExceeded") save(QUOTA_KEY, pacificDay());
-      openOnYouTube(query);
+      searchWithoutKey(query);
     }
+  }
+
+  // Không có key (hoặc key hết lượt, bị lỗi): nhờ server trên máy (start.ps1) tự tìm trên YouTube.
+  // Server không tìm được, hoặc trang mở thẳng từ file, thì mở kết quả trên YouTube.
+  async function searchWithoutKey(query) {
+    let items = null;
+    if (onServer) {
+      showMsg("Đang tìm...");
+      try { items = await (await fetch("/api/search?q=" + encodeURIComponent(query))).json(); } catch (e) {}
+    }
+    if (!items) { openOnYouTube(query); return; }
+    if (items.length) cachePut(query, items);
+    renderResults(items);
   }
 
   function showMsg(html) { $("results").innerHTML = `<p class="msg">${html}</p>`; }
@@ -456,7 +469,7 @@
     $("keySection").hidden = true;
     if (lastSong) sing(lastSong);
   };
-  document.querySelectorAll('input[name=tone]').forEach(r => r.onchange = () => lastSong && (apiKey || App) && sing(lastSong));
+  document.querySelectorAll('input[name=tone]').forEach(r => r.onchange = () => lastSong && (apiKey || App || onServer) && sing(lastSong));
   chips($("popular"), POPULAR);
   renderRecent();
 
